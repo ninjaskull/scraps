@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { TiUserAdd, TiContacts } from "react-icons/ti";
 import { MdPages } from "react-icons/md";
-import { FaBuilding, FaList } from "react-icons/fa";
+import { FaBuilding, FaList, FaStar } from "react-icons/fa";
 import LeadList from "./Pages/LeadList";
 import AccountList from "./Pages/AccountList";
 import MultiPageScraper from "./Pages/MultiPageScraper";
@@ -16,9 +16,7 @@ function App() {
       <div className="bg-gradient-to-r from-purple-600/80 via-blue-600/80 to-indigo-700/80 backdrop-blur-xl p-3 text-white border-b border-white/10">
         <div className="flex items-center justify-center gap-2 mb-2">
           <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
+            <FaStar className="w-4 h-4 text-white" />
           </div>
           <h1 className="text-lg font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
             Scrapo
