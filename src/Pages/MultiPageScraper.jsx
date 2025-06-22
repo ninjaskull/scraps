@@ -389,25 +389,43 @@ const MultiPageScraper = () => {
     let pageNumber = 1;
     let canContinue = true;
 
-    while (canContinue && isScrapingMultiple) {
-      console.log(`🔄 Scraping page ${pageNumber}...`);
+    while (canContinue && pageNumber <= pagesToScrape) {
+      // Check if user stopped scraping
+      if (!isScrapingMultiple) {
+        console.log('🛑 Scraping stopped by user');
+        break;
+      }
+
+      console.log(`🔄 Scraping page ${pageNumber} of ${pagesToScrape}...`);
+      setCurrentPage(pageNumber);
       
-      if (scrapingType === "accounts") {
+      try {
+        if (scrapingType === "accounts") {
           await scrapeAccountPage();
         } else {
           await scrapeLeadPage();
         }
 
-      console.log(`✅ Page ${pageNumber} scraped successfully`);
+        console.log(`✅ Page ${pageNumber} scraped successfully`);
 
-      const hasNextPage = await navigateToNextPage();
+        // Don't try to navigate if this is the last page we want to scrape
+        if (pageNumber < pagesToScrape) {
+          console.log(`🔄 Navigating to page ${pageNumber + 1}...`);
+          const hasNextPage = await navigateToNextPage();
 
-      if (hasNextPage) {
-        pageNumber++;
-        setCurrentPage(pageNumber);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      } else {
-        console.log('🏁 No more pages to scrape');
+          if (hasNextPage) {
+            pageNumber++;
+            // Wait for page to load
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          } else {
+            console.log('🏁 No more pages available to scrape');
+            canContinue = false;
+          }
+        } else {
+          pageNumber++;
+        }
+      } catch (error) {
+        console.error(`❌ Error scraping page ${pageNumber}:`, error);
         canContinue = false;
       }
     }
@@ -503,11 +521,17 @@ const MultiPageScraper = () => {
           <div className="space-y-3">
             <div className="bg-emerald-500/20 backdrop-blur-sm rounded-lg p-3 border border-emerald-400/30">
               <p className="text-emerald-300 text-sm text-center">
-                Scraping in progress... Page {currentPage}
+                Scraping in progress... Page {currentPage} of {pagesToScrape}
               </p>
               <div className="w-full bg-emerald-900/40 rounded-full h-2 mt-2">
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                <div 
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${(currentPage / pagesToScrape) * 100}%` }}
+                ></div>
               </div>
+              <p className="text-emerald-400 text-xs text-center mt-1">
+                {Math.round((currentPage / pagesToScrape) * 100)}% Complete
+              </p>
             </div>
 
             <button
