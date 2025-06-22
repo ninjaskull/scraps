@@ -1,78 +1,13 @@
-
-/* eslint-disable no-undef */
 import { useState } from "react";
-import { IoPlay, IoStop } from "react-icons/io5";
-import { MdPages } from "react-icons/md";
-import Papa from "papaparse";
+import { MdPages, FaPlay, FaStop, FaDownload, FaTrash } from "react-icons/fa";
 
 const MultiPageScraper = () => {
   const [csvData, setCsvData] = useState("");
-  const [tableSheetCount, setTableSheetCount] = useState(0);
-  const [pagesToScrape, setPagesToScrape] = useState(5);
+  const [scrapedDataCount, setScrapedDataCount] = useState(0);
   const [isScrapingMultiple, setIsScrapingMultiple] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [scrapingType, setScrapingType] = useState("accounts"); // "accounts" or "leads"
-
-  const startMultiPageScraping = async () => {
-    setIsScrapingMultiple(true);
-    setCurrentPage(1);
-    let shouldContinue = true;
-    
-    try {
-      // Clear previous data
-      const storageKey = scrapingType === "accounts" ? "scrapedListData" : "scrapedData";
-      await new Promise(resolve => {
-        chrome.storage.local.remove(storageKey, () => resolve());
-      });
-      setCsvData("");
-      setTableSheetCount(0);
-
-      for (let page = 1; page <= pagesToScrape && shouldContinue; page++) {
-        setCurrentPage(page);
-        console.log(`🔄 Starting page ${page} of ${pagesToScrape}`);
-        
-        // Scrape current page
-        try {
-          if (scrapingType === "accounts") {
-            await scrapeAccountPage();
-          } else {
-            await scrapeLeadPage();
-          }
-          console.log(`✅ Successfully scraped page ${page}`);
-        } catch (scrapeError) {
-          console.error(`Error scraping page ${page}:`, scrapeError);
-          // Continue to next page even if current page fails
-        }
-        
-        // Navigate to next page if not the last page
-        if (page < pagesToScrape) {
-          console.log(`🔄 Navigating to page ${page + 1}...`);
-          const navigationSuccess = await navigateToNextPage();
-          if (!navigationSuccess) {
-            console.log(`❌ Failed to navigate to page ${page + 1}. Stopping scraping.`);
-            shouldContinue = false;
-            break;
-          }
-          // Wait longer for page to fully load
-          console.log(`⏳ Waiting for page ${page + 1} to load...`);
-          await new Promise(resolve => setTimeout(resolve, 6000));
-        }
-      }
-      
-      console.log(`✅ Completed scraping ${pagesToScrape} pages`);
-    } catch (error) {
-      console.error("Error during multi-page scraping:", error);
-    } finally {
-      setIsScrapingMultiple(false);
-      setCurrentPage(0);
-    }
-  };
-
-  const stopMultiPageScraping = () => {
-    setIsScrapingMultiple(false);
-    setCurrentPage(0);
-    console.log('🛑 Multi-page scraping stopped by user');
-  };
+  const [pagesToScrape, setPagesToScrape] = useState(5);
 
   const navigateToNextPage = async () => {
     try {
@@ -85,10 +20,9 @@ const MultiPageScraper = () => {
         target: { tabId: tab.id },
         func: async () => {
           const delay = ms => new Promise(res => setTimeout(res, ms));
-          
+
           console.log('🔍 Looking for next page button...');
-          
-          // Enhanced selectors for LinkedIn Sales Navigator pagination
+
           const nextButtonSelectors = [
             'button[aria-label="Next"]',
             'button[aria-label="Go to next page"]',
@@ -103,48 +37,44 @@ const MultiPageScraper = () => {
             'button[data-test-icon="chevron-right"]',
             '.ember-view .artdeco-pagination__button--next'
           ];
-          
+
           let nextButton = null;
           let buttonInfo = '';
-          
+
           for (const selector of nextButtonSelectors) {
             try {
               const buttons = document.querySelectorAll(selector);
               console.log(`Selector "${selector}" found ${buttons.length} buttons`);
-              
+
               for (const button of buttons) {
                 if (button && 
                     !button.disabled && 
-                    !button.classList.contains('disabled') &&
-                    !button.hasAttribute('disabled') &&
-                    button.offsetParent !== null) { // Check if element is visible
+                    !button.classList.contains('disabled') && 
+                    !button.hasAttribute('disabled') && 
+                    button.offsetParent !== null) {
                   nextButton = button;
                   buttonInfo = `Found button with selector: ${selector}`;
                   break;
                 }
               }
-              
               if (nextButton) break;
-            } catch (e) {
-              console.log(`Error with selector "${selector}":`, e);
+            } catch (error) {
+              console.log(`Error with selector "${selector}":`, error);
             }
           }
-          
+
           if (nextButton) {
             console.log('✅ Next button found:', buttonInfo);
             console.log('🔄 Clicking next page...');
-            
-            // Scroll to the button first
+
             nextButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await delay(2000);
-            
-            // Store current URL to verify page change
-            const currentUrl = window.location.href;
-            
-            // Click the button using different methods
+
+            const currentURL = window.location.href;
+
             try {
               nextButton.click();
-            } catch (clickError) {
+            } catch {
               console.log('Regular click failed, trying dispatch event');
               nextButton.dispatchEvent(new MouseEvent('click', {
                 view: window,
@@ -152,43 +82,40 @@ const MultiPageScraper = () => {
                 cancelable: true
               }));
             }
-            
-            // Wait for page transition
+
             await delay(4000);
-            
-            // Verify the page actually changed
-            const newUrl = window.location.href;
-            const pageChanged = currentUrl !== newUrl;
-            
+
+            const newURL = window.location.href;
+            const pageChanged = currentURL !== newURL;
+
             console.log(`Page change verification: ${pageChanged ? 'SUCCESS' : 'FAILED'}`);
-            console.log(`Old URL: ${currentUrl}`);
-            console.log(`New URL: ${newUrl}`);
-            
+            console.log(`Old URL: ${currentURL}`);
+            console.log(`New URL: ${newURL}`);
+
             return pageChanged;
           } else {
             console.log('❌ No valid next button found');
-            
-            // Debug: log all pagination related elements
             const paginationElements = document.querySelectorAll('[class*="pagination"], [data-test*="pagination"], button[aria-label*="Next"], button[aria-label*="next"]');
             console.log(`Found ${paginationElements.length} pagination-related elements`);
-            paginationElements.forEach((el, index) => {
+
+            paginationElements.forEach((element, index) => {
               console.log(`Element ${index}:`, {
-                tagName: el.tagName,
-                className: el.className,
-                ariaLabel: el.getAttribute('aria-label'),
-                disabled: el.disabled,
-                visible: el.offsetParent !== null
+                tagName: element.tagName,
+                className: element.className,
+                ariaLabel: element.getAttribute('aria-label'),
+                disabled: element.disabled,
+                visible: element.offsetParent !== null
               });
             });
-            
+
             return false;
           }
-        },
+        }
       });
-      
+
       return result[0].result;
     } catch (error) {
-      console.error("Error navigating to next page:", error);
+      console.error('Error navigating to next page:', error);
       return false;
     }
   };
@@ -203,7 +130,6 @@ const MultiPageScraper = () => {
       const response = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: async () => {
-          // Same scroll logic as AccountList
           const scrollToEndAndBackToTop = async () => {
             const delay = ms => new Promise(res => setTimeout(res, ms));
 
@@ -217,25 +143,24 @@ const MultiPageScraper = () => {
             }
 
             console.log('🌀 Starting human‑like scroll to bottom...');
+            const maxHeight = container === window ? document.body.scrollHeight : container.scrollHeight;
+            const scrollSteps = [0, 0.05, 0.33, 0.66, 1];
 
-            const maxScroll = container === window ? document.body.scrollHeight : container.scrollHeight;
-            const scrollPercentages = [0, 0.05, 0.33, 0.66, 1.0];
-            
-            for (let i = 0; i < scrollPercentages.length; i++) {
-              const targetY = Math.min(maxScroll, maxScroll * scrollPercentages[i]);
+            for (let i = 0; i < scrollSteps.length; i++) {
+              const scrollPosition = Math.min(maxHeight, maxHeight * scrollSteps[i]);
               if (container === window) {
-                window.scrollTo({ top: targetY, behavior: 'smooth' });
+                window.scrollTo({ top: scrollPosition, behavior: 'smooth' });
               } else {
-                container.scrollTo({ top: targetY, behavior: 'smooth' });
+                container.scrollTo({ top: scrollPosition, behavior: 'smooth' });
               }
-              console.log(`→ Scrolled to ${(scrollPercentages[i] * 100).toFixed(0)}%`);
+              console.log(`→ Scrolled to ${(scrollSteps[i] * 100).toFixed(0)}%`);
               await delay(800 + Math.random() * 400);
             }
 
             await delay(1500);
             console.log('✅ Reached bottom of current page.');
-
             console.log('🔼 Scrolling back to top...');
+
             if (container === window) {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
@@ -247,73 +172,80 @@ const MultiPageScraper = () => {
 
           await scrollToEndAndBackToTop();
 
-          // Same scraping logic as AccountList
-          const listItems = document.querySelectorAll(".artdeco-list .artdeco-list__item");
-          const extractedData = Array.from(listItems).map((item) => {
-            const addIfExists = (key, value) => value ? { [key]: value.trim() } : {};
+          const accountItems = document.querySelectorAll('.artdeco-list .artdeco-list__item');
 
-            const nameElement = item.querySelector(".artdeco-entity-lockup__title a");
+          return Array.from(accountItems).map(item => {
+            const getTextContent = (field, element) => element ? { [field]: element.trim() } : {};
+
+            const nameElement = item.querySelector('.artdeco-entity-lockup__title a');
             const name = nameElement ? nameElement.textContent.trim() : null;
-            const profileLink = nameElement ? `https://www.linkedin.com${nameElement.getAttribute("href")}` : null;
+            const profileURL = nameElement ? `https://www.linkedin.com${nameElement.getAttribute('href')}` : null;
 
-            const industryElement = item.querySelector(".artdeco-entity-lockup__subtitle span[data-anonymize='industry']");
+            const industryElement = item.querySelector('.artdeco-entity-lockup__subtitle span[data-anonymize="industry"]');
             const industry = industryElement ? industryElement.textContent.trim() : null;
 
-            const employeesElement = item.querySelector("a.li-i18n-linkto._view-all-employees_1derdc");
+            const employeesElement = item.querySelector('a.li-i18n-linkto._view-all-employees_1derdc');
             const employees = employeesElement ? employeesElement.textContent.trim() : null;
 
-            const aboutElement = item.querySelector("dd.t-12.t-black--light.mb3 div span:nth-child(2)");
-            const about = aboutElement ? aboutElement.textContent.trim().replace("…see more", "").trim() : null;
+            const aboutElement = item.querySelector('dd.t-12.t-black--light.mb3 div span:nth-child(2)');
+            const about = aboutElement ? aboutElement.textContent.trim().replace('…see more', '').trim() : null;
 
-            const designationElement = item.querySelector(".artdeco-entity-lockup__subtitle span[data-anonymize='title']");
+            const designationElement = item.querySelector('.artdeco-entity-lockup__subtitle span[data-anonymize="title"]');
             const designation = designationElement ? designationElement.textContent.trim() : null;
 
-            const organizationElement = item.querySelector(".artdeco-entity-lockup__subtitle a[data-anonymize='company-name']");
+            const organizationElement = item.querySelector('.artdeco-entity-lockup__subtitle a[data-anonymize="company-name"]');
             const organization = organizationElement ? organizationElement.textContent.trim() : null;
-            const organizationUrl = organizationElement ? `https://www.linkedin.com${organizationElement.getAttribute("href")}` : null;
+            const organizationURL = organizationElement ? `https://www.linkedin.com${organizationElement.getAttribute('href')}` : null;
 
-            const locationElement = item.querySelector(".artdeco-entity-lockup__caption span[data-anonymize='location']");
+            const locationElement = item.querySelector('.artdeco-entity-lockup__caption span[data-anonymize="location"]');
             const location = locationElement ? locationElement.textContent.trim() : null;
 
             return {
-              ...addIfExists("Name", name),
-              ...addIfExists("ProfileURL", profileLink),
-              ...addIfExists("Industry", industry),
-              ...addIfExists("Employees", employees),
-              ...addIfExists("About", about),
-              ...addIfExists("Designation", designation),
-              ...addIfExists("Organization", organization),
-              ...addIfExists("OrganizationURL", organizationUrl),
-              ...addIfExists("Location", location),
+              ...getTextContent('Name', name),
+              ...getTextContent('ProfileURL', profileURL),
+              ...getTextContent('Industry', industry),
+              ...getTextContent('Employees', employees),
+              ...getTextContent('About', about),
+              ...getTextContent('Designation', designation),
+              ...getTextContent('Organization', organization),
+              ...getTextContent('OrganizationURL', organizationURL),
+              ...getTextContent('Location', location)
             };
           });
-
-          return extractedData;
         },
       });
 
-      const newData = response[0].result;
-      chrome.storage.local.get("scrapedListData", (result) => {
-        const existingData = result.scrapedListData || [];
-        const combinedData = [...existingData, ...newData];
+      chrome.storage.local.get('scrapedListData', (result) => {
+        const newData = [...(result.scrapedListData || []), ...response[0].result];
+        chrome.storage.local.set({ scrapedListData: newData }, () => {
+          const csvContent = (() => {
+            const headers = ['Name', 'ProfileURL', 'Location', 'Industry', 'Employees', 'Designation', 'Organization', 'OrganizationURL', 'About']
+              .filter(header => newData.some(row => row[header] && row[header].trim() !== ''));
 
-        chrome.storage.local.set({ scrapedListData: combinedData }, () => {
-          const csv = (() => {
-            const nonEmptyColumns = [
-              "Name", "ProfileURL", "Location", "Industry", "Employees",
-              "Designation", "Organization", "OrganizationURL", "About",
-            ].filter((column) =>
-              combinedData.some((row) => row[column] && row[column].trim() !== "")
-            );
+            const Papa = window.Papa || { unparse: (data, options) => {
+              const csvRows = [];
+              const headers = options.columns;
+              csvRows.push(headers.join(','));
 
-            return Papa.unparse(combinedData, { columns: nonEmptyColumns });
+              data.forEach(row => {
+                const values = headers.map(header => {
+                  const value = row[header] || '';
+                  return `"${value.replace(/"/g, '""')}"`;
+                });
+                csvRows.push(values.join(','));
+              });
+
+              return csvRows.join('\n');
+            }};
+
+            return Papa.unparse(newData, { columns: headers });
           })();
-          setCsvData(csv);
-          setTableSheetCount(combinedData.length);
+          setCsvData(csvContent);
+          setScrapedDataCount(newData.length);
         });
       });
     } catch (error) {
-      console.error("Error scraping account page", error);
+      console.error('Error scraping account page', error);
     }
   };
 
@@ -440,7 +372,7 @@ const MultiPageScraper = () => {
       const combinedData = isHeaderIncluded ? [...previousData, ...dataArray] : [headerArray, ...previousData, ...dataArray];
 
       chrome.storage.local.set({ scrapedData: combinedData });
-      setTableSheetCount(combinedData.length - 1);
+      setScrapedDataCount(combinedData.length - 1);
 
       const csv = Papa.unparse(combinedData);
       setCsvData(csv);
@@ -449,76 +381,99 @@ const MultiPageScraper = () => {
     }
   };
 
-  const downloadCSV = () => {
-    if (!csvData) {
-      console.error("No CSV data available for download");
-      return;
+  const startMultiPageScraping = async () => {
+    setIsScrapingMultiple(true);
+    setCurrentPage(1);
+
+    let pageNumber = 1;
+    let canContinue = true;
+
+    while (canContinue && isScrapingMultiple) {
+      console.log(`🔄 Scraping page ${pageNumber}...`);
+      
+      if (scrapingType === "accounts") {
+          await scrapeAccountPage();
+        } else {
+          await scrapeLeadPage();
+        }
+
+      console.log(`✅ Page ${pageNumber} scraped successfully`);
+
+      const hasNextPage = await navigateToNextPage();
+
+      if (hasNextPage) {
+        pageNumber++;
+        setCurrentPage(pageNumber);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } else {
+        console.log('🏁 No more pages to scrape');
+        canContinue = false;
+      }
     }
 
-    const blob = new Blob([csvData], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "linkedin_multi_page_data.csv";
+    setIsScrapingMultiple(false);
+    setCurrentPage(0);
+    console.log('✅ Multi-page scraping completed');
+  };
+
+  const stopMultiPageScraping = () => {
+    setIsScrapingMultiple(false);
+    setCurrentPage(0);
+    console.log('🛑 Multi-page scraping stopped by user');
+  };
+
+  const downloadCSV = () => {
+    if (!csvData) return;
+
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'scrapo_multipage.csv');
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    clearData();
   };
 
   const clearData = () => {
     const storageKey = scrapingType === "accounts" ? "scrapedListData" : "scrapedData";
     chrome.storage.local.remove(storageKey, () => {
       setCsvData("");
-      setTableSheetCount(0);
-      console.log("Scraped data cleared.");
+      setScrapedDataCount(0);
     });
   };
 
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen">
-      {/* Header Section */}
-      <div className="text-center space-y-3">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center">
-            <MdPages className="text-white text-lg" />
-          </div>
-          <h1 className="text-lg font-bold text-gray-800">Multi-Page Scraper</h1>
+    <div className="p-4 space-y-4 text-white">
+      <div className="bg-gradient-to-br from-emerald-600/20 to-teal-600/20 backdrop-blur-xl rounded-xl p-4 border border-white/10 shadow-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <MdPages className="text-emerald-400 text-lg" />
+          <h2 className="text-lg font-semibold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+            Multi-Page Scraper
+          </h2>
         </div>
-        
-        <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-          <p className="text-sm text-gray-600 leading-relaxed">
-            Advanced scraper for{" "}
-            <span className="text-emerald-600 font-semibold">LinkedIn Sales Navigator</span>
-            <br />
-            <span className="text-gray-500">Automatically scrape multiple pages</span>
-          </p>
-        </div>
-      </div>
-
-      
-
-      {/* Configuration Section */}
-      <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 space-y-4">
-        <h3 className="text-md font-semibold text-gray-800 mb-3">Configuration</h3>
+        <p className="text-gray-300 text-sm mb-4">
+          Automatically scrape all pages in search results.
+        </p>
         
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-300 mb-2">
             Scraping Type:
           </label>
           <select
             value={scrapingType}
             onChange={(e) => setScrapingType(e.target.value)}
-            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+            className="w-full p-3 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 text-black"
             disabled={isScrapingMultiple}
           >
             <option value="accounts">📊 Account Pages</option>
             <option value="leads">👥 Lead List Pages</option>
           </select>
         </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        
+         <div>
+          <label className="block text-sm font-semibold text-gray-300 mb-2">
             Number of Pages:
           </label>
           <input
@@ -527,90 +482,82 @@ const MultiPageScraper = () => {
             max="50"
             value={pagesToScrape}
             onChange={(e) => setPagesToScrape(parseInt(e.target.value) || 1)}
-            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+            className="w-full p-3 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 text-black"
             disabled={isScrapingMultiple}
           />
           <p className="text-xs text-gray-500 mt-1">Maximum 50 pages per session</p>
         </div>
-      </div>
 
-      {/* Progress Section */}
-      {isScrapingMultiple && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 shadow-md">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-blue-800 font-semibold">
-              Scraping page {currentPage} of {pagesToScrape}
-            </span>
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-          <div className="w-full bg-blue-200 rounded-full h-3">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500 shadow-sm"
-              style={{ width: `${(currentPage / pagesToScrape) * 100}%` }}
-            ></div>
-          </div>
-          <p className="text-xs text-blue-600 mt-2 text-center">
-            {Math.round((currentPage / pagesToScrape) * 100)}% Complete
-          </p>
-        </div>
-      )}
-
-      {/* Action Section */}
-      <div className="space-y-4">
         {!isScrapingMultiple ? (
           <button
             onClick={startMultiPageScraping}
-            className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3"
+            className="w-full bg-gradient-to-r from-emerald-600/80 to-teal-600/80 hover:from-emerald-500/90 hover:to-teal-500/90 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            <IoPlay className="text-xl" />
-            Start Multi-Page Scraping
+            <div className="flex items-center justify-center gap-2">
+              <FaPlay />
+              <span>Start Multi-Page Scraping</span>
+            </div>
           </button>
         ) : (
-          <button
-            onClick={stopMultiPageScraping}
-            className="w-full py-4 px-6 bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 rounded-xl text-white font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3"
-          >
-            <IoStop className="text-xl" />
-            Stop Scraping
-          </button>
-        )}
-
-        {/* Stats Card */}
-        <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-600">{tableSheetCount}</p>
-            <p className="text-sm text-gray-500 font-medium">Total Records Scraped</p>
-          </div>
-        </div>
-
-        {/* Download Actions */}
-        {csvData && (
           <div className="space-y-3">
+            <div className="bg-emerald-500/20 backdrop-blur-sm rounded-lg p-3 border border-emerald-400/30">
+              <p className="text-emerald-300 text-sm text-center">
+                Scraping in progress... Page {currentPage}
+              </p>
+              <div className="w-full bg-emerald-900/40 rounded-full h-2 mt-2">
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+              </div>
+            </div>
+
             <button
-              onClick={downloadCSV}
-              className="w-full py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
+              onClick={stopMultiPageScraping}
+              className="w-full bg-gradient-to-r from-red-600/80 to-pink-600/80 hover:from-red-500/90 hover:to-pink-500/90 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              </svg>
-              Download Multi-Page CSV
-            </button>
-            <button
-              onClick={clearData}
-              className="w-full py-2 px-6 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 rounded-xl text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Clear Data
+              <div className="flex items-center justify-center gap-2">
+                <FaStop />
+                <span>Stop Scraping</span>
+              </div>
             </button>
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="text-center pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-400">Multi-Page Scraper • Advanced Features • v1.1</p>
+      {scrapedDataCount > 0 && (
+        <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-xl p-4 border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-md font-semibold text-purple-400">
+              Data Ready ({scrapedDataCount} accounts)
+            </h3>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={downloadCSV}
+              className="flex-1 bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-500/90 hover:to-pink-500/90 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <FaDownload className="text-sm" />
+                <span className="text-sm">Download CSV</span>
+              </div>
+            </button>
+
+            <button
+              onClick={clearData}
+              className="flex-1 bg-gradient-to-r from-red-600/80 to-pink-600/80 hover:from-red-500/90 hover:to-pink-500/90 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <FaTrash className="text-sm" />
+                <span className="text-sm">Clear Data</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="text-center pt-4 border-t border-white/10">
+        <p className="text-xs text-gray-400">
+          Scrapo v1.1 • Built for efficiency
+        </p>
       </div>
     </div>
   );
