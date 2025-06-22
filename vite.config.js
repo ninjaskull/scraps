@@ -14,7 +14,13 @@ export default defineConfig({
       output: {
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]'
+        assetFileNames: (assetInfo) => {
+          // Keep images in their original structure
+          if (assetInfo.name && assetInfo.name.match(/\.(png|jpe?g|svg|gif|ico)$/)) {
+            return '[name].[ext]'
+          }
+          return 'assets/[name].[ext]'
+        }
       }
     },
     copyPublicDir: true
