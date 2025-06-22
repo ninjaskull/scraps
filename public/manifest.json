@@ -8,14 +8,14 @@
   "host_permissions": ["https://www.linkedin.com/sales/lists/people"],
   "action": {
     "default_popup": "index.html",
-    "default_icon": "./images/scrapo_128.png"
+    "default_icon": "images/scrapo_128.png"
   },
   "icons": {
-    "16": "./images/scrapo_16.png",
-    "48": "./images/scrapo_48.png",
-    "128": "./images/scrapo_128.png"
+    "16": "images/scrapo_16.png",
+    "48": "images/scrapo_48.png",
+    "128": "images/scrapo_128.png"
   },
   "background": {
-    "service_worker": "./background.js"
+    "service_worker": "background.js"
   }
 }
