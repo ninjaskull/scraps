@@ -385,17 +385,13 @@ const MultiPageScraper = () => {
   const startMultiPageScraping = async () => {
     setIsScrapingMultiple(true);
     setCurrentPage(1);
+    
+    console.log(`🚀 Starting multi-page scraping: ${pagesToScrape} pages, type: ${scrapingType}`);
 
     let pageNumber = 1;
-    let canContinue = true;
+    let shouldContinue = true;
 
-    while (canContinue && pageNumber <= pagesToScrape) {
-      // Check if user stopped scraping
-      if (!isScrapingMultiple) {
-        console.log('🛑 Scraping stopped by user');
-        break;
-      }
-
+    while (shouldContinue && pageNumber <= pagesToScrape) {
       console.log(`🔄 Scraping page ${pageNumber} of ${pagesToScrape}...`);
       setCurrentPage(pageNumber);
       
@@ -408,7 +404,7 @@ const MultiPageScraper = () => {
 
         console.log(`✅ Page ${pageNumber} scraped successfully`);
 
-        // Don't try to navigate if this is the last page we want to scrape
+        // Check if we need to navigate to next page
         if (pageNumber < pagesToScrape) {
           console.log(`🔄 Navigating to page ${pageNumber + 1}...`);
           const hasNextPage = await navigateToNextPage();
@@ -419,14 +415,16 @@ const MultiPageScraper = () => {
             await new Promise(resolve => setTimeout(resolve, 4000));
           } else {
             console.log('🏁 No more pages available to scrape');
-            canContinue = false;
+            shouldContinue = false;
           }
         } else {
+          // We've completed all requested pages
           pageNumber++;
+          shouldContinue = false;
         }
       } catch (error) {
         console.error(`❌ Error scraping page ${pageNumber}:`, error);
-        canContinue = false;
+        shouldContinue = false;
       }
     }
 
@@ -509,7 +507,10 @@ const MultiPageScraper = () => {
 
         {!isScrapingMultiple ? (
           <button
-            onClick={startMultiPageScraping}
+            onClick={() => {
+              console.log('🎯 Start button clicked!');
+              startMultiPageScraping();
+            }}
             className="w-full bg-gradient-to-r from-emerald-600/80 to-teal-600/80 hover:from-emerald-500/90 hover:to-teal-500/90 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             <div className="flex items-center justify-center gap-2">
