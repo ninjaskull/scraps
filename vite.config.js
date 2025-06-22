@@ -17,7 +17,8 @@ export default defineConfig({
         assetFileNames: 'assets/[name].[ext]'
       }
     },
-    copyPublicDir: true
+    copyPublicDir: true,
+    assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg']
   },
   publicDir: 'public',
   define: {
