@@ -1,0 +1,66 @@
+Hi!
+
+I'd like to add a feature to my Chrome extension that automatically scrapes account data from LinkedIn Sales Navigator (or similar paginated lists).
+
+---
+
+### 🔁 Feature Requirements
+
+The extension should:
+
+1. **Scroll the results area (not the full window)** in a realistic, human-like way:
+   - Divide the total scroll height into **3 steps**
+   - Use `scrollTo({ top: ..., behavior: 'smooth' })`
+   - Add a short `setTimeout`/`await` delay (~1000ms) between each scroll step
+   - After the last scroll, **wait 2 seconds** to allow lazy-loaded content to render
+
+   #### 🔽 Example Scroll Logic (code to include in content script):
+   ```js
+   async function scrollInThreeSteps(container) {
+       const step = container.scrollHeight / 3;
+
+       for (let i = 1; i <= 3; i++) {
+           container.scrollTo({ top: step * i, behavior: 'smooth' });
+           await new Promise(r => setTimeout(r, 1000)); // wait ~1s per step
+       }
+
+       await new Promise(r => setTimeout(r, 2000)); // wait after final scroll
+   }
+   ```
+
+2. **Scrape all 25 visible records** on the page:
+   - Extract: `Name`, `Title`, `Company`
+   - Store the scraped objects in an array
+
+3. **Click the “Next” pagination button**:
+   - Wait 3–4 seconds for new data to load before continuing
+
+4. Repeat the process until the user-specified number of pages is scraped
+
+---
+
+### ⚙️ User Input
+
+- The user can enter a value (e.g. “5 pages”), and the extension will repeat the process for that many pages.
+
+---
+
+### 📄 Output
+
+- Once complete, generate a CSV file with all scraped data
+- CSV Columns: `Name`, `Title`, `Company`
+- Trigger download of the file automatically
+
+---
+
+### 💡 Summary of Timing Logic
+
+| Action           | Duration         | Notes                            |
+|------------------|------------------|----------------------------------|
+| Each scroll step | ~1s              | Smooth scrolling via scrollTo    |
+| Post-scroll wait | ~2s              | Allows lazy-loaded content       |
+| Page load wait   | ~3–4s            | After clicking “Next”            |
+
+---
+
+Let me know if you want this as part of `content.js` or need help wiring this to the popup UI.
