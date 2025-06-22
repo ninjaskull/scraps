@@ -1,11 +1,11 @@
 
+import { useState } from "react";
 import { TiUserAdd, TiContacts } from "react-icons/ti";
 import { MdPages } from "react-icons/md";
-import { useState } from "react";
+import { FaBuilding, FaList } from "react-icons/fa";
 import LeadList from "./Pages/LeadList";
 import AccountList from "./Pages/AccountList";
 import MultiPageScraper from "./Pages/MultiPageScraper";
-import { FaBuilding, FaList } from "react-icons/fa";
 
 function App() {
   const [pageView, setPageView] = useState("Accounts");

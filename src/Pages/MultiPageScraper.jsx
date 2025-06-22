@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MdPages, FaPlay, FaStop, FaDownload, FaTrash } from "react-icons/fa";
+import { FaPlay, FaStop, FaDownload, FaTrash } from "react-icons/fa";
+import { MdPages } from "react-icons/md";
 
 const MultiPageScraper = () => {
   const [csvData, setCsvData] = useState("");
